@@ -1,6 +1,6 @@
 #include <windows.h>
 #include <stdio.h>
-#include "myheader.h" // Custom header file
+#include "common_resource.h" // Custom header file
 #include <stdlib.h>  // For rand() and srand()
 #include <time.h>    // For time()
 
@@ -13,29 +13,50 @@ ResultStruct expectedResult[NUM_RANDOM_NUMBERS];
 int pipeFileCreate();
 int dataSentToCons();
 int dataRecievedFromCons();
+void checkCheckSum();
 
 int main() {
-    // PipeFileCreate();
     if (pipeFileCreate() != 0) {
         exit(EXIT_FAILURE);
     }
-
-    // DataSentToCons();
+    DWORD startTime = GetTickCount(); // Get current time in milliseconds
+    printf("Sending Data to Consumer...\n");
     if (dataSentToCons(hPipe) != 0) {
         exit(EXIT_FAILURE);
     }
-
-    //DataRecievedFromCons();
+    printf("Sent Data to Consumer...\n");
+    printf("Receiving Data from Consumer...\n");
     if (dataRecievedFromCons(hPipe) != 0) {
         exit(EXIT_FAILURE);
     }
+    printf("Received Data from Consumer...\n");
+    DWORD endTime = GetTickCount(); // Get current time after the delay
+    DWORD elapsedTime = endTime - startTime; // Calculate elapsed time in milliseconds
+    printf("Elapsed time: %u milliseconds\n", elapsedTime);
+    printf("Checking checksum...");
+    checkCheckSum();
 
     // Close the pipe
     CloseHandle(hPipe);
     return 0;
 }
 
-int pipeFileCreate(){
+void checkCheckSum() {
+    boolean is_checksum_success = TRUE;
+    for (int i = 0; i < NUM_RANDOM_NUMBERS; ++i) {
+        if(expectedResult[i].id != sumArrayShared[i].id ||
+           expectedResult[i].result != sumArrayShared[i].result) {
+            printf("Checksum failed!\n");
+            is_checksum_success= FALSE;
+            break;
+        }
+    } 
+    if (is_checksum_success){
+        printf("Checksum Successful!\n");
+    }
+}
+
+int pipeFileCreate() {
     // Connect to the named pipe
     hPipe = CreateFile(
         PIPE_NAME,
@@ -79,14 +100,11 @@ int dataSentToCons(){
             return 1;
         }
 
-        printf("Sent random number to server\n");
-
         // Wait a short time to simulate slower production of numbers
         Sleep(10);
     }
     return 0;
 }
-
 
 int dataRecievedFromCons(){
     BOOL success;
@@ -104,23 +122,6 @@ int dataRecievedFromCons(){
             CloseHandle(hPipe);
             return 1;
         }
-        printf("Received from consumer. idx [%d], result: %.2f\n",sumArrayShared[i].id, sumArrayShared[i].result);
     }
-
-   //checksum
-    // for (int i = 0; i < NUM_RANDOM_NUMBERS; ++i) {
-    //     if(expectedResult[i].id == sumArrayShared[i].id &&
-    //         expectedResult[i].result == sumArrayShared[i].result) {
-    //         printf("Checksum successful!\n");
-    //     }
-    //     else{
-    //         printf("Checksum failed!\n");
-    //     }
-    for (int i = 0; i < NUM_RANDOM_NUMBERS; ++i) {
-        if(expectedResult[i].id != sumArrayShared[i].id ||
-           expectedResult[i].result != sumArrayShared[i].result) {
-            printf("Checksum failed!\n");
-        }
-    }  
     return 0;
 }

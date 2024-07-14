@@ -1,4 +1,4 @@
-#include "myheader.h"
+#include "common_resource.h"
 #include <windows.h>
 #include <stdio.h>
 

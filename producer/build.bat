@@ -1,8 +1,13 @@
 if not exist .\build (
     mkdir .\build
 )
-gcc -c ../common_dir/myheader.c -o myheader.o -I ../common_dir/
 
-gcc -c producer.c -o producer.o -I ../common_dir/
+if not exist .\build\obj (
+    mkdir .\build\obj
+)
 
-gcc -o ./build/producer myheader.o producer.o
+gcc -c ../common_dir/common_resource.c -o .\build\obj\common_resource.o -I ../common_dir/
+
+gcc -c producer.c -o .\build\obj\producer.o -I ../common_dir/
+
+gcc -o ./build/producer .\build\obj\common_resource.o .\build\obj\producer.o

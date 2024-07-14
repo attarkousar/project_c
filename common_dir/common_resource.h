@@ -1,5 +1,5 @@
-#ifndef MYHEADER_H
-#define MYHEADER_H
+#ifndef COMMON_RESOURCE_H
+#define COMMON_RESOURCE_H
 
 
 // Include necessary system headers
@@ -10,7 +10,7 @@
 // declaring Common resources
 #define PIPE_NAME "\\\\.\\pipe\\MyNamedPipe"
 #define BUFFER_SIZE sizeof(ProducerMessage)  // Use size of integer for buffer size
-#define NUM_RANDOM_NUMBERS 4
+#define NUM_RANDOM_NUMBERS 1000
 
 
 
@@ -38,4 +38,4 @@ typedef enum {
 
 float processMessageCommands(ProducerMessage message);
 
-#endif // MYHEADER_H
+#endif // COMMON_RESOURCE_H

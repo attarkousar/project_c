@@ -26,4 +26,7 @@ do WriteFile in while loop for NMAX_NUM times
     break
 }
 
+Producer is producing random numbers and sending through IPC(message queue Named pipe) to consumer, Consumber doing arithmatic 
+operations using thread and storing it in an array with id and result and sending it back to producer. Producer checking the result using checksum
+
 */
