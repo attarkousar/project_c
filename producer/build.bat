@@ -1,9 +1,8 @@
-@echo off
-gcc -o producer producer.c
-if %errorlevel% neq 0 (
-    echo Compilation failed.
-    pause
-    exit /b %errorlevel%
+if not exist .\build (
+    mkdir .\build
 )
-echo Compilation successful.
-pause
+gcc -c ../common_dir/myheader.c -o myheader.o -I ../common_dir/
+
+gcc -c producer.c -o producer.o -I ../common_dir/
+
+gcc -o ./build/producer myheader.o producer.o

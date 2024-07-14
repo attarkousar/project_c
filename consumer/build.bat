@@ -1,9 +1,9 @@
-@echo off
-gcc -o consumer consumer.c
-if %errorlevel% neq 0 (
-    echo Compilation failed.
-    pause
-    exit /b %errorlevel%
+if not exist .\build (
+    mkdir .\build
+
 )
-echo Compilation successful.
-pause
+gcc -c ../common_dir/myheader.c -o myheader.o -I ../common_dir/
+
+gcc -c consumer.c -o  consumer.o -I ../common_dir/
+
+gcc -o  ./build/consumer  myheader.o  consumer.o

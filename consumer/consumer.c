@@ -1,57 +1,48 @@
 #include <windows.h>
 #include <stdio.h>
-
-typedef struct {
-    int id;
-    float x;
-    float y;
-    int command;
-} ProducerMessage;
-
-typedef struct {
-    int id;
-    float result;
-} ResultStruct;
-
-#define PIPE_NAME "\\\\.\\pipe\\MyNamedPipe"
-#define BUFFER_SIZE sizeof(ProducerMessage)  // Use size of integer for buffer size
-#define NUM_RANDOM_NUMBERS 4
-ProducerMessage arr[NUM_RANDOM_NUMBERS];//defining array 
-
-
-ResultStruct sumArrayShared[NUM_RANDOM_NUMBERS];
-float sumArray1[NUM_RANDOM_NUMBERS/2];
-float sumArray2[NUM_RANDOM_NUMBERS/2];
-CRITICAL_SECTION cs;
-
-HANDLE threads[2];
+#include "myheader.h" // Custom header file
 
 HANDLE hPipe;
+DWORD bytesRead, bytesWritten;
+ResultStruct sumArrayShared[NUM_RANDOM_NUMBERS];
 
 
-void ThreadFunc();
-DWORD WINAPI AddNumbers(LPVOID lpParam);
-int PipeNameCreate();
-int GetDataFromProd();
-int SendDataToProd();
+ProducerMessage arr[NUM_RANDOM_NUMBERS];//defining array
+float sumArray1[NUM_RANDOM_NUMBERS/2];
+float sumArray2[NUM_RANDOM_NUMBERS/2];
+
+//CRITICAL_SECTION cs;
+HANDLE mutex;
+HANDLE threads[2];
+
+//Forward declaration
+void threadFunc();
+DWORD WINAPI performArithmetic(LPVOID lpParam);
+int pipeNameCreate();
+int getDataFromProd();
+int sendDataToProd();
+
 
 int main() {
-    if (PipeNameCreate() != 0) {
+    if (pipeNameCreate() != 0) {
         exit(EXIT_FAILURE);
     }
-    if (GetDataFromProd(hPipe) != 0) {
+    if (getDataFromProd(hPipe) != 0) {
         exit(EXIT_FAILURE);
     }
-    ThreadFunc();
+    threadFunc();
 
-    SendDataToProd();
+    if (sendDataToProd(hPipe) != 0) {
+        exit(EXIT_FAILURE);
+    }
 
     CloseHandle(hPipe);
 
     return 0;
 }
 
-int PipeNameCreate() {
+
+int pipeNameCreate() {
         // Create a named pipe
     hPipe = CreateNamedPipe(
         PIPE_NAME,
@@ -72,11 +63,10 @@ int PipeNameCreate() {
     return 0;
 }
 
-int GetDataFromProd() {
-    
-    DWORD bytesRead, bytesWritten;
-    BOOL result;
 
+int getDataFromProd() {
+    //DWORD bytesRead, bytesWritten;
+    BOOL result;
 
     printf("Waiting for client to connect...\n");
     // Wait for a client to connect
@@ -118,18 +108,23 @@ int GetDataFromProd() {
     }
     return 0;
 }
-void ThreadFunc() {
-    /////////////////////////////////////////////////////////////////////////// Threads ///////////////////////////////////////////////////////////////////////////////////
+
+
+void threadFunc() {
     
     int thread_args1[3] = { 0, NUM_RANDOM_NUMBERS / 2 , 1};
     int thread_args2[3] = { NUM_RANDOM_NUMBERS / 2 , NUM_RANDOM_NUMBERS, 2 };
     
-    InitializeCriticalSection(&cs);
-    threads[0] = CreateThread(NULL, 0, AddNumbers, thread_args1, 0, NULL);
-    threads[1] = CreateThread(NULL, 0, AddNumbers, thread_args2, 0, NULL);
+    //InitializeCriticalSection(&cs);
+    mutex = CreateMutex(NULL, FALSE, NULL);
+
+    threads[0] = CreateThread(NULL, 0, performArithmetic, thread_args1, 0, NULL);
+    threads[1] = CreateThread(NULL, 0, performArithmetic, thread_args2, 0, NULL);
 
     WaitForMultipleObjects(2, threads, TRUE, INFINITE);
-    DeleteCriticalSection(&cs);
+
+    //DeleteCriticalSection(&cs);
+    CloseHandle(mutex);
     for(int i=0; i< (NUM_RANDOM_NUMBERS); i++){
         printf("Sumarray [%d] id: %d Result: %.2f\n",i, sumArrayShared[i].id, sumArrayShared[i].result);
     }
@@ -138,53 +133,31 @@ void ThreadFunc() {
     CloseHandle(threads[1]);
 
 }
-typedef enum {
-    COMMAND_ADD,
-    COMMAND_SUB,
-    COMMAND_MULT,
-    COMMAND_DIV
-} CommandType;
-
-float processMessageCommands(ProducerMessage message)
-{
-    switch(message.command) {
-        case COMMAND_ADD:
-            return message.x + message.y;
-        case COMMAND_SUB:
-            return message.x - message.y;
-        case COMMAND_MULT:
-            return message.x * message.y;
-        case COMMAND_DIV:
-            if(message.y == 0) {
-                message.y += 0.1; //Avoid zero div
-            }
-            return (float)(message.x / message.y);
-        default:
-            return 1;
-    }
-}
 
 
-DWORD WINAPI AddNumbers(LPVOID lpParam) {
+DWORD WINAPI performArithmetic(LPVOID lpParam) {
     int* args = (int*)lpParam;
     int start = args[0];
     int end = args[1];
     int idx = args[2];  
 
     for (int i = start; i < end; i++) {
-        EnterCriticalSection(&cs);
+        //EnterCriticalSection(&cs);
+        WaitForSingleObject(mutex, INFINITE); // Lock the mutex 
+        // Access shared resource
         sumArrayShared[i].id = i;
        // sumArrayShared[i].result = arr[i].x + arr[i].y;
         sumArrayShared[i].result = processMessageCommands(arr[i]);
                 
-        LeaveCriticalSection(&cs);
+        //LeaveCriticalSection(&cs);
+        ReleaseMutex(mutex); // Unlock the mutex
     }
     return 0;
 }
 
 
-int SendDataToProd(){
-    DWORD bytesRead, bytesWritten;
+int sendDataToProd(){
+    // DWORD bytesRead, bytesWritten;
     BOOL success;
 
     // Send modified data back to the producer
@@ -205,6 +178,7 @@ int SendDataToProd(){
 
     //printf("Sent to producer: %d\n", sumArrayShared);// you can modify this to loop through array using for loop
     printf("Sent to producer\n");
+    return 0;
 
 }
  
