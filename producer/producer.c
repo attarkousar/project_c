@@ -3,6 +3,10 @@
 #include <stdlib.h>  // For rand() and srand()
 #include <time.h>    // For time()
 
+#define PIPE_NAME "\\\\.\\pipe\\MyNamedPipe"
+#define BUFFER_SIZE sizeof(ProducerMessage)  // Use size of integer for buffer size
+#define NUM_RANDOM_NUMBERS 4
+
 // Define a struct for a producer message
 typedef struct {
     int id;
@@ -11,11 +15,11 @@ typedef struct {
     int command;
 } ProducerMessage;
 
-#define PIPE_NAME "\\\\.\\pipe\\MyNamedPipe"
-#define BUFFER_SIZE sizeof(ProducerMessage)  // Use size of integer for buffer size
-#define NUM_RANDOM_NUMBERS 4
-
-
+typedef struct {
+    int id;
+    float result;
+} ResultStruct;
+ResultStruct sumArrayShared[NUM_RANDOM_NUMBERS];
 
 int main() {
     HANDLE hPipe;
@@ -64,7 +68,32 @@ int main() {
         Sleep(10);
     }
 
+    //DWORD bytesRead, bytesWritten;
+    BOOL success;
+    for (int i = 0; i < NUM_RANDOM_NUMBERS; ++i) {
+        // Read modified data from the consumer
+        success = ReadFile(
+            hPipe,                 // Handle to pipe
+            &sumArrayShared[i],                // Buffer to receive data
+            sizeof(sumArrayShared[i]),           // Size of buffer
+            &bytesRead,            // Number of bytes read
+            NULL);                 // Not overlapped I/O
+
+        if (!success || bytesRead == 0) {
+            printf("Error reading from pipe: %d\n", GetLastError());
+            CloseHandle(hPipe);
+            return 1;
+        }
+        printf("Received from consumer. idx [%d], result: %.2f\n",sumArrayShared[i].id, sumArrayShared[i].result);
+    }
+
+    //printf("Received from consumer: %s\n", buffer);
+ 
+    
+
     // Close the pipe
     CloseHandle(hPipe);
     return 0;
 }
+
+

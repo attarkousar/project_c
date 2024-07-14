@@ -24,6 +24,8 @@ float sumArray1[NUM_RANDOM_NUMBERS/2];
 float sumArray2[NUM_RANDOM_NUMBERS/2];
 CRITICAL_SECTION cs;
 
+HANDLE threads[2];
+
 HANDLE hPipe;
 
 
@@ -31,6 +33,7 @@ void ThreadFunc();
 DWORD WINAPI AddNumbers(LPVOID lpParam);
 int PipeNameCreate();
 int GetDataFromProd();
+int SendDataToProd();
 
 int main() {
     if (PipeNameCreate() != 0) {
@@ -40,7 +43,11 @@ int main() {
         exit(EXIT_FAILURE);
     }
     ThreadFunc();
+
+    SendDataToProd();
+
     CloseHandle(hPipe);
+
     return 0;
 }
 
@@ -109,26 +116,26 @@ int GetDataFromProd() {
             break;    
         }
     }
+    return 0;
 }
 void ThreadFunc() {
     /////////////////////////////////////////////////////////////////////////// Threads ///////////////////////////////////////////////////////////////////////////////////
-    HANDLE threads[2];
-    int thread_args1[3] = { 0, NUM_RANDOM_NUMBERS / 2 , 1};
-    int thread_args2[3] = { NUM_RANDOM_NUMBERS / 2, NUM_RANDOM_NUMBERS, 2 };
     
-   InitializeCriticalSection(&cs);
+    int thread_args1[3] = { 0, NUM_RANDOM_NUMBERS / 2 , 1};
+    int thread_args2[3] = { NUM_RANDOM_NUMBERS / 2 , NUM_RANDOM_NUMBERS, 2 };
+    
+    InitializeCriticalSection(&cs);
     threads[0] = CreateThread(NULL, 0, AddNumbers, thread_args1, 0, NULL);
     threads[1] = CreateThread(NULL, 0, AddNumbers, thread_args2, 0, NULL);
 
     WaitForMultipleObjects(2, threads, TRUE, INFINITE);
-
     DeleteCriticalSection(&cs);
+    for(int i=0; i< (NUM_RANDOM_NUMBERS); i++){
+        printf("Sumarray [%d] id: %d Result: %.2f\n",i, sumArrayShared[i].id, sumArrayShared[i].result);
+    }
 
     CloseHandle(threads[0]);
     CloseHandle(threads[1]);
-    for(int i=0; i< (NUM_RANDOM_NUMBERS); i++){
-        printf("Sumarray [%.2f] id: %d Result: %.2f\n",i, sumArrayShared[i].id, sumArrayShared[i].result);
-    }
 
 }
 typedef enum {
@@ -151,11 +158,12 @@ float processMessageCommands(ProducerMessage message)
             if(message.y == 0) {
                 message.y += 0.1; //Avoid zero div
             }
-            return message.x / message.y;
+            return (float)(message.x / message.y);
         default:
-            return 0;
+            return 1;
     }
 }
+
 
 DWORD WINAPI AddNumbers(LPVOID lpParam) {
     int* args = (int*)lpParam;
@@ -171,6 +179,32 @@ DWORD WINAPI AddNumbers(LPVOID lpParam) {
                 
         LeaveCriticalSection(&cs);
     }
-
     return 0;
 }
+
+
+int SendDataToProd(){
+    DWORD bytesRead, bytesWritten;
+    BOOL success;
+
+    // Send modified data back to the producer
+    for (int i = 0; i < NUM_RANDOM_NUMBERS; ++i) {
+        success = WriteFile(
+            hPipe,                 // Handle to pipe
+            &sumArrayShared[i],                // Buffer to write from
+            sizeof(sumArrayShared[i]),    // Number of bytes to write (include null terminator)
+            &bytesWritten,         // Number of bytes written
+            NULL);                 // Not overlapped I/O
+    
+        if (!success) {
+            printf("Error writing to pipe: %d\n", GetLastError());
+            CloseHandle(hPipe);
+            return 1;
+        }
+    }
+
+    //printf("Sent to producer: %d\n", sumArrayShared);// you can modify this to loop through array using for loop
+    printf("Sent to producer\n");
+
+}
+ 
