@@ -62,7 +62,7 @@ int pipeNameCreate() {
 int getDataFromProd() {
     BOOL result;
 
-    printf("Waiting for client to connect...\n");
+    printf("Waiting for producer to connect...\n");
 
     result = ConnectNamedPipe(hPipe, NULL);
     if (!result) {
@@ -70,7 +70,7 @@ int getDataFromProd() {
         CloseHandle(hPipe);
         return 1;
     }
-    printf("Client connected. Waiting for messages...\n");
+    printf("Producer connected. Waiting for messages...\n");
 
     int count = 0;//counter intialization
     while (1) {
