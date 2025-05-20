@@ -10,10 +10,10 @@ ResultStruct sumArrayShared[NUM_RANDOM_NUMBERS];
 ResultStruct expectedResult[NUM_RANDOM_NUMBERS];
 
 //Forward declaration
-int pipeFileCreate();
-int dataSentToCons();
-int dataRecievedFromCons();
-void checkCheckSum();
+int pipeFileCreate();//Function to connect to the named pipe
+int dataSentToCons();//Function to generate random messages, send them to the consumer process, and calculate expected results for checksum.
+int dataRecievedFromCons();//Function to receive modified data from the consumer process
+void checkCheckSum();//Function to verify checksum between expected and received data.
 
 int main() {
     if (pipeFileCreate() != 0) {
@@ -33,7 +33,7 @@ int main() {
     DWORD endTime = GetTickCount(); // Get current time after the delay
     DWORD elapsedTime = endTime - startTime; // Calculate elapsed time in milliseconds
     printf("Elapsed time: %u milliseconds\n", elapsedTime);
-    printf("Checking checksum...");
+    printf("Checking checksum...\n");
     checkCheckSum();
 
     // Close the pipe
@@ -59,13 +59,13 @@ void checkCheckSum() {
 int pipeFileCreate() {
     // Connect to the named pipe
     hPipe = CreateFile(
-        PIPE_NAME,
-        GENERIC_READ | GENERIC_WRITE,
-        0,
-        NULL,
-        OPEN_EXISTING,
-        0,
-        NULL
+        PIPE_NAME,                    // Pipe name
+        GENERIC_READ | GENERIC_WRITE, // Access mode (read and write)
+        0,                            // No sharing (pipe handle is not inherited)
+        NULL,                         // Default security attributes
+        OPEN_EXISTING,                // Opens an existing pipe
+        0,                            // Default attributes and flags
+        NULL                          // Template file (not used for pipes)
     );
 
     if (hPipe == INVALID_HANDLE_VALUE) {
@@ -101,7 +101,7 @@ int dataSentToCons(){
         }
 
         // Wait a short time to simulate slower production of numbers
-        Sleep(10);
+        Sleep(2);
     }
     return 0;
 }
@@ -111,11 +111,11 @@ int dataRecievedFromCons(){
     for (int i = 0; i < NUM_RANDOM_NUMBERS; ++i) {
         // Read modified data from the consumer
         success = ReadFile(
-            hPipe,                 // Handle to pipe
-            &sumArrayShared[i],                // Buffer to receive data
-            sizeof(sumArrayShared[i]),           // Size of buffer
-            &bytesRead,            // Number of bytes read
-            NULL);                 // Not overlapped I/O
+            hPipe,                     // Handle to pipe
+            &sumArrayShared[i],        // Buffer to receive data
+            sizeof(sumArrayShared[i]), // Size of buffer
+            &bytesRead,                // Number of bytes read
+            NULL);                     // Not overlapped I/O
 
         if (!success || bytesRead == 0) {
             printf("Error reading from pipe: %d\n", GetLastError());

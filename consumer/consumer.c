@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "common_resource.h"
 
-#define MAX_THREADS 4
+#define MAX_THREADS 8
 
 HANDLE hPipe;
 HANDLE mutex;
@@ -12,11 +12,11 @@ ResultStruct sumArrayShared[NUM_RANDOM_NUMBERS];
 ProducerMessage arr[NUM_RANDOM_NUMBERS];//defining array
 
 //Forward declaration
-void threadFunc();
+void threadFunc();//to distribute processing of received data among multiple threads.
 DWORD WINAPI performArithmetic(LPVOID lpParam);
-int pipeNameCreate();
-int getDataFromProd();
-int sendDataToProd();
+int pipeNameCreate();// to create a named pipe.
+int getDataFromProd();//to receive data from the producer via the named pipe.
+int sendDataToProd();//to send processed data back to the producer.
 
 int main() {
     if (pipeNameCreate() != 0) {
@@ -41,22 +41,22 @@ int main() {
 int pipeNameCreate() {
     // Create a named pipe
     hPipe = CreateNamedPipe(
-        PIPE_NAME,
-        PIPE_ACCESS_DUPLEX,
-        PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
-        PIPE_UNLIMITED_INSTANCES,
-        BUFFER_SIZE,
-        BUFFER_SIZE,
-        0,
-        NULL
+        PIPE_NAME,                              // Pipe name
+        PIPE_ACCESS_DUPLEX,                     // Pipe open mode: read/write access
+        PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT, // Pipe mode and wait mode
+        PIPE_UNLIMITED_INSTANCES,               // Max instances
+        BUFFER_SIZE,                            // Output buffer size
+        BUFFER_SIZE,                            // Input buffer size
+        0,                                      // Default time-out (0 means default)
+        NULL                                    // Default security attributes
     );
 
     if (hPipe == INVALID_HANDLE_VALUE) {
         printf("CreateNamedPipe failed, error code: %d\n", GetLastError());
-        return 1;
+        return 1;                               // Return failure if pipe creation fails
     }
 
-    return 0;
+    return 0;                                   // Return success if pipe creation succeeds
 }
 
 int getDataFromProd() {
@@ -80,7 +80,7 @@ int getDataFromProd() {
         if (!result || bytesRead == 0) {
             DWORD dwError = GetLastError();
             if (dwError == ERROR_BROKEN_PIPE) {
-                printf("Client disconnected.\n");
+                printf("Producer disconnected.\n");
             } else {
                 printf("ReadFile failed, error code: %d\n", dwError);
             }
@@ -101,9 +101,6 @@ void threadFunc() {
     int start_idx = 0;
     int end_idx   = 0;
 
-    // int thread_args1[2] = { 0, NUM_RANDOM_NUMBERS / 2 };
-    // int thread_args2[2] = { NUM_RANDOM_NUMBERS / 2 , NUM_RANDOM_NUMBERS,};
-
     mutex = CreateMutex(NULL, FALSE, NULL);
 
     for (int i = 0; i < MAX_THREADS; i++) {
@@ -113,10 +110,7 @@ void threadFunc() {
         threads[i] = CreateThread(NULL, 0, performArithmetic, thread_args, 0, NULL);
         Sleep(1);
     }
-    // threads[0] = CreateThread(NULL, 0, performArithmetic, thread_args1, 0, NULL);
-    // threads[1] = CreateThread(NULL, 0, performArithmetic, thread_args2, 0, NULL);
-
-    //WaitForMultipleObjects(2, threads, TRUE, INFINITE);
+  
     WaitForMultipleObjects(MAX_THREADS, threads, TRUE, INFINITE);
     CloseHandle(mutex);
 
@@ -124,8 +118,7 @@ void threadFunc() {
     for (int i = 0; i < MAX_THREADS; i++) {
         CloseHandle(threads[i]);
     }
-    // CloseHandle(threads[0]);
-    // CloseHandle(threads[1]);
+   
 }
 
 DWORD WINAPI performArithmetic(LPVOID lpParam) {
@@ -152,11 +145,11 @@ int sendDataToProd(){
     // Send modified data back to the producer
     for (int i = 0; i < NUM_RANDOM_NUMBERS; ++i) {
         success = WriteFile(
-            hPipe,                 // Handle to pipe
-            &sumArrayShared[i],                // Buffer to write from
-            sizeof(sumArrayShared[i]),    // Number of bytes to write (include null terminator)
-            &bytesWritten,         // Number of bytes written
-            NULL);                 // Not overlapped I/O
+            hPipe,                     // Handle to pipe
+            &sumArrayShared[i],        // Buffer to write from
+            sizeof(sumArrayShared[i]), // Number of bytes to write (include null terminator)
+            &bytesWritten,             // Number of bytes written
+            NULL);                     // Not overlapped I/O
     
         if (!success) {
             printf("Error writing to pipe: %d\n", GetLastError());

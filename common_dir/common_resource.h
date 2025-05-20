@@ -10,7 +10,7 @@
 // declaring Common resources
 #define PIPE_NAME "\\\\.\\pipe\\MyNamedPipe"
 #define BUFFER_SIZE sizeof(ProducerMessage)  // Use size of integer for buffer size
-#define NUM_RANDOM_NUMBERS 1000
+#define NUM_RANDOM_NUMBERS 400
 
 
 
