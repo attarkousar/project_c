@@ -96,30 +96,57 @@ int getDataFromProd() {
     return 0;
 }
 
-void threadFunc() {
-    
+void threadFunc() { 
     int start_idx = 0;
     int end_idx   = 0;
 
+    // Create a mutex for synchronizing access to shared array
     mutex = CreateMutex(NULL, FALSE, NULL);
 
     for (int i = 0; i < MAX_THREADS; i++) {
         start_idx = i * (NUM_RANDOM_NUMBERS / MAX_THREADS);
-        end_idx = start_idx + (NUM_RANDOM_NUMBERS / MAX_THREADS);
-        int thread_args[2] = {start_idx, end_idx};
-        threads[i] = CreateThread(NULL, 0, performArithmetic, thread_args, 0, NULL);
-        Sleep(1);
+        end_idx   = start_idx + (NUM_RANDOM_NUMBERS / MAX_THREADS);
+
+        // Allocate thread arguments dynamically
+        int* thread_args = (int*)malloc(2 * sizeof(int));
+        if (thread_args == NULL) {
+            printf("Memory allocation failed for thread %d\n", i);
+            continue; // skip this thread if malloc fails
+        }
+
+        thread_args[0] = start_idx;
+        thread_args[1] = end_idx;
+
+        // Create thread and pass allocated args
+        threads[i] = CreateThread(
+            NULL,            // default security
+            0,               // default stack size
+            performArithmetic,      // thread function
+            thread_args,     // arguments
+            0,               // run immediately
+            NULL             // thread id
+        ); 
+
+        if (threads[i] == NULL) {
+            printf("Failed to create thread %d. Error: %lu\n", i, GetLastError());
+            free(thread_args); // cleanup if thread creation fails
+        }
+
+        Sleep(1); // slight delay to avoid race on arg pointer
     }
-  
+
+    // Wait for all threads to finish
     WaitForMultipleObjects(MAX_THREADS, threads, TRUE, INFINITE);
+
+    // Cleanup
     CloseHandle(mutex);
-
-
     for (int i = 0; i < MAX_THREADS; i++) {
-        CloseHandle(threads[i]);
+        if (threads[i] != NULL) {
+            CloseHandle(threads[i]);
+        }
     }
-   
 }
+
 
 DWORD WINAPI performArithmetic(LPVOID lpParam) {
     int* args = (int*)lpParam;
@@ -136,6 +163,8 @@ DWORD WINAPI performArithmetic(LPVOID lpParam) {
         Sleep(100); //Strictly for making task execution time more than data transmision
         
     }
+    // Free dynamically allocated args
+    free(args);
     return 0;
 }
 
